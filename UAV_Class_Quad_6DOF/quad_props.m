@@ -12,6 +12,8 @@ P.Jy   = 0.0095;  % kg-m^2
 P.Jz   = 0.0186;  % kg-m^2
 P.Jxz  = 0;       % kg-m^2
 P.L_to_motor = 0.2223; % Arm length from hub to motors (at 45deg in X configuration)
+P.delta_x       = 0.1579; % Arm length in x direction
+P.delta_y       = 0.1579; % Arm length in y direction
 
 % Prop params
 P.S_prop        = pi*.111^2;          % Aero swept by prop, m^2
@@ -19,6 +21,7 @@ P.C_prop        = 1;                  % Prop efficientcy coefficient, no units
 P.k_motor       = 17.4556;            % Motor constant, m/s
 P.k_Tp          = 2.6673e-7;          % Prop torque constant, kg-m^2 = N-m/(rad/s)^2
 P.k_omega       = 946.1011;           % Prop speed constant, rad/s (Equiv. to 9034.6 RPM)
+
 
 % lumped parameters
 P.mu_rotorDrag = 0.52;                % Total rotor drag coefficient, N/(m/s)
