@@ -47,10 +47,26 @@ function out = quadsim_kin_dyn(uu,P)
 
     % Your code goes below...
         
-    Pdot_ned = zeros(3,1);
-    vgdot_b = zeros(3,1);
-    euler_rates = zeros(3,1);    
-    wdot_b = zeros(3,1);
+    % Compute DCMs
+    R_ned2b = eulerToRotationMatrix(phi,theta,psi);
+
+    % NED Position EoMs
+    Pdot_ned = (R_ned2b')*vg_b;
+
+    % Body groundspeed vector EoMs
+    vgdot_b = cross(-w_b, vg_b) + (f_b/P.mass);
+
+    % Euler angle EoMs
+    M = [1, sin(phi)*tan(theta), cos(phi)*tan(theta);
+        0, cos(phi), -sin(phi);
+        0, sin(phi)*sec(theta),cos(phi)*sec(theta)];
+    euler_rates = M*w_b;
+
+    % Body rate EoMs
+    J = [P.Jx, 0,-P.Jxz;
+        0, P.Jy, 0;
+        -P.Jxz, 0, P.Jz];
+    wdot_b = inv(J)* (cross(-w_b, (J*w_b))+m_b) ;
 
     % Compile state derivatives vector
     xdot = [Pdot_ned; vgdot_b; euler_rates; wdot_b];
