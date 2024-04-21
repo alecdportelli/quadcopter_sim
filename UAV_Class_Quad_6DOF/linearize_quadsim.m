@@ -1,3 +1,11 @@
+% load_quadsim.m
+%
+% Initializer for quadsim.mdl.
+%
+% Developed for JHU EP 525.461, UAV Systems & Control
+% Adapted from design project in "Small Unmanned Aircraft: Theory and
+% Practice", RWBeard & TWMcClain, Princeton Univ. Press, 2012
+
 function [A, B] = linearize_quadsim(P)
 % Create a linearized state space model of the quadsim aircraft about the
 % nominal conditions in the input structure P.
