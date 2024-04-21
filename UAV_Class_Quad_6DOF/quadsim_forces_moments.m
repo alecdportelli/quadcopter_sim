@@ -55,7 +55,6 @@ function out = quadsim_forces_moments(uu, P)
     % Add the local frame
     R_ned2b = eulerToRotationMatrix(phi,theta,psi);
 
-
     % Prop rotation rates
     omega_1 = (P.k_omega*delta_1) + P.prop_1_omega_bias;  
     omega_2 = (P.k_omega*delta_2) + P.prop_2_omega_bias;
@@ -75,7 +74,7 @@ function out = quadsim_forces_moments(uu, P)
     [Va, alpha, beta] = makeVaAlphaBeta(vg_b - wind_b);
 
     % Compute the air coming in
-    V_air_in = dot((vg_b - wind_b), (-k_hat))
+    V_air_in = dot((vg_b - wind_b), (-k_hat));
 
     % Define prop term 
     PROP_TERM = P.rho * P.C_prop * P.S_prop;
@@ -87,9 +86,6 @@ function out = quadsim_forces_moments(uu, P)
     MOTOR_TERM_4 = ((omega_4 / P.k_omega) * (P.k_motor - V_air_in));
 
     % Compute forces 
-    disp((V_air_in + MOTOR_TERM_1))
-    disp("e")
-    disp((MOTOR_TERM_1))
     F1 = PROP_TERM * (V_air_in + MOTOR_TERM_1) * (MOTOR_TERM_1);
     F2 = PROP_TERM * (V_air_in + MOTOR_TERM_2) * (MOTOR_TERM_2);
     F3 = PROP_TERM * (V_air_in + MOTOR_TERM_3) * (MOTOR_TERM_3);
