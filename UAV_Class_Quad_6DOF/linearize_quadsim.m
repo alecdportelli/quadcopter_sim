@@ -1,16 +1,8 @@
-% load_quadsim.m
-%
-% Initializer for quadsim.mdl.
-%
-% Developed for JHU EP 525.461, UAV Systems & Control
-% Adapted from design project in "Small Unmanned Aircraft: Theory and
-% Practice", RWBeard & TWMcClain, Princeton Univ. Press, 2012
-
-function [A, B] = linearize_quadsim(P)
-% Create a linearized state space model of the quadsim aircraft about the
+function [A, B] = linearize_uavsim(P)
+% Create a linearized state space model of the uavsim aircraft about the
 % nominal conditions in the input structure P.
 %
-%    [A B] = linearize_quadsim(P)
+%    [A B] = linearize_uavsim(P)
 %
 % Developed for JHU EP 525.461, UAV Systems & Control
 % Adapted from design project in "Small Unmanned Aircraft: Theory and
@@ -53,12 +45,12 @@ function [A, B] = linearize_quadsim(P)
         %   - Perturb the ith state (and only the ith state) by adding eps_perturb
         %     (Hint: Set x_perturbed=x0, then add eps_perturb to x_perturbed(i).)
         %   - Eval the perturbed xdot: xdot_perturbed = f(x_perturbed,u0) 
-        %   - A(:,i) = ( f(x_perturbed,u0) - f(x0,u0) ) / eps_perturbed
+        %   - A(:,i) = ( f(x_perturbed,u0) - f(x0,u0) ) / eps_perturb
         
         x_perturbed = x0;
         x_perturbed(i) = x_perturbed(i) + eps_perturb;
         xdot_perturbed = eval_forces_moments_kin_dyn(x_perturbed, u0, P);
-        A(:,i)= ( xdot_perturbed - eval_forces_moments_kin_dyn(x0,u0, P) ) / eps_perturb;
+        A(:,i)= ( xdot_perturbed - xdot0 ) / eps_perturb;
     end
 
     % Construct linearized B matrix a column at a time
@@ -69,11 +61,11 @@ function [A, B] = linearize_quadsim(P)
         %   - Perturb the ith control deflection (and only the ith deflection) by adding eps_perturb
         %   - (Hint: Set u_perturbed=u0, then add eps_perturb to u_perturbed(i).)
         %   - Eval the perturbed xdot: xdot_perturbed = f(x0,u_perturbed) 
-        %   - B(:,i) = ( f(x0,u_perturbed) - f(x0,u0) ) / eps_perturbed
+        %   - B(:,i) = ( f(x0,u_perturbed) - f(x0,u0) ) / eps_perturb
         u_perturbed = u0;
-        u_perturbed = u_perturbed + eps_perturb;
+        u_perturbed(i) = u_perturbed(i) + eps_perturb;
         xdot_perturbed = eval_forces_moments_kin_dyn(x0, u_perturbed, P);
-        B(:,i)= ( xdot_perturbed - eval_forces_moments_kin_dyn(x0,u0, P) ) / eps_perturb;
+        B(:,i)= ( xdot_perturbed - xdot0 ) / eps_perturb;
     end
 
     % Linearization is a function of wind. Notify user if non-zero wind
@@ -97,13 +89,13 @@ function xdot = eval_forces_moments_kin_dyn(x,deltas,P)
     % f_and_m = uav_forces_moments(uu, P)
     %   INPUT: uu = [wind_ned(1:3); deltas(1:4); x(1:12); time(1)];
     %   OUTPUT: out = [Forces; Torques]; % Length 3+3=6
-    uu = [wind_ned;deltas;x;time]; % Note: uu should be a column vector
-    f_and_m = quadsim_forces_moments(uu,P);
+    uu = [wind_ned; deltas; x; time]; % Note: uu should be a column vector
+    f_and_m = uavsim_forces_moments(uu,P);
 
     % xdot = uav_kin_dyn(uu,P)
     %   INPUT: uu = [x(1:12); f_and_m(1:6); time(1)];
     %   OUTPUT: xdot = [Pdot_ned; vgdot_b; euler_rates; wdot_b];
     uu = [x; f_and_m; time]; % Note: uu should be a column vector
-    xdot = quadsim_kin_dyn(uu, P);
+    xdot = uavsim_kin_dyn(uu, P);
 
 end
