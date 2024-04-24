@@ -55,6 +55,9 @@ function P = init_quadsim_params
     % specify nominal launch height
     P.h0_m = 50;    % launch altitude, m
 
+    P.k_Pf = (P.rho * P.C_prop * P.S_prop * P.k_motor * P.k_motor) ...
+                  / (P.k_omega * P.k_omega);
+
     % first cut at initial conditions
 
     % Dynamic States
