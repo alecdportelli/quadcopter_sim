@@ -80,7 +80,7 @@ de2theta_analytical = (8 * P.delta_x * P.k_Pf * P.k_omega * P.k_omega * P.delta_
      / (P.Jy * s^2);
  
 % Declare numerical TF
-de2theta_numerical = H(ktheta,kde)
+de2theta_numerical = H(ktheta,kde);
  
 % Plot
 figure
@@ -101,7 +101,7 @@ dt2alt_analytical = ((8/P.mass) * P.k_Pf * P.k_omega * P.k_omega ...
     * P.delta_t0) / (s^2);
  
 % Declare numerical TF
-dt2alt_numerical = -1*H(kpd,kdt)
+dt2alt_numerical = -1*H(kpd,kdt);
  
 % Plot
 figure
