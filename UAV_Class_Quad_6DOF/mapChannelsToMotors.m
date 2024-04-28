@@ -38,3 +38,4 @@ function [delta_1, delta_2, delta_3, delta_4] = mapChannelsToMotors(delta_e,delt
     delta_2 = motor_singal_gain(2); % back left
     delta_3 = motor_singal_gain(3); % front left 
     delta_4 = motor_singal_gain(4); % back right
+end

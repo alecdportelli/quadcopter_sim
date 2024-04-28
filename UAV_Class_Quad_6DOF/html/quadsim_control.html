@@ -1,0 +1,941 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   <!--
+This HTML was auto-generated from MATLAB code.
+To make changes, update the MATLAB code and republish this document.
+      --><title>quadsim_control</title><meta name="generator" content="MATLAB 9.14"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2024-04-26"><meta name="DC.source" content="quadsim_control.m"><style type="text/css">
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outine:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}
+
+html { min-height:100%; margin-bottom:1px; }
+html body { height:100%; margin:0px; font-family:Arial, Helvetica, sans-serif; font-size:10px; color:#000; line-height:140%; background:#fff none; overflow-y:scroll; }
+html body td { vertical-align:top; text-align:left; }
+
+h1 { padding:0px; margin:0px 0px 25px; font-family:Arial, Helvetica, sans-serif; font-size:1.5em; color:#d55000; line-height:100%; font-weight:normal; }
+h2 { padding:0px; margin:0px 0px 8px; font-family:Arial, Helvetica, sans-serif; font-size:1.2em; color:#000; font-weight:bold; line-height:140%; border-bottom:1px solid #d6d4d4; display:block; }
+h3 { padding:0px; margin:0px 0px 5px; font-family:Arial, Helvetica, sans-serif; font-size:1.1em; color:#000; font-weight:bold; line-height:140%; }
+
+a { color:#005fce; text-decoration:none; }
+a:hover { color:#005fce; text-decoration:underline; }
+a:visited { color:#004aa0; text-decoration:none; }
+
+p { padding:0px; margin:0px 0px 20px; }
+img { padding:0px; margin:0px 0px 20px; border:none; }
+p img, pre img, tt img, li img, h1 img, h2 img { margin-bottom:0px; }
+
+ul { padding:0px; margin:0px 0px 20px 23px; list-style:square; }
+ul li { padding:0px; margin:0px 0px 7px 0px; }
+ul li ul { padding:5px 0px 0px; margin:0px 0px 7px 23px; }
+ul li ol li { list-style:decimal; }
+ol { padding:0px; margin:0px 0px 20px 0px; list-style:decimal; }
+ol li { padding:0px; margin:0px 0px 7px 23px; list-style-type:decimal; }
+ol li ol { padding:5px 0px 0px; margin:0px 0px 7px 0px; }
+ol li ol li { list-style-type:lower-alpha; }
+ol li ul { padding-top:7px; }
+ol li ul li { list-style:square; }
+
+.content { font-size:1.2em; line-height:140%; padding: 20px; }
+
+pre, code { font-size:12px; }
+tt { font-size: 1.2em; }
+pre { margin:0px 0px 20px; }
+pre.codeinput { padding:10px; border:1px solid #d3d3d3; background:#f7f7f7; }
+pre.codeoutput { padding:10px 11px; margin:0px 0px 20px; color:#4c4c4c; }
+pre.error { color:red; }
+
+@media print { pre.codeinput, pre.codeoutput { word-wrap:break-word; width:100%; } }
+
+span.keyword { color:#0000FF }
+span.comment { color:#228B22 }
+span.string { color:#A020F0 }
+span.untermstring { color:#B20000 }
+span.syscmd { color:#B28C00 }
+span.typesection { color:#A0522D }
+
+.footer { width:auto; padding:10px 0px; margin:25px 0px 0px; border-top:1px dotted #878787; font-size:0.8em; line-height:140%; font-style:italic; color:#878787; text-align:left; float:none; }
+.footer p { margin:0px; }
+.footer a { color:#878787; }
+.footer a:hover { color:#878787; text-decoration:underline; }
+.footer a:visited { color:#878787; }
+
+table th { padding:7px 5px; text-align:left; vertical-align:middle; border: 1px solid #d6d4d4; font-weight:bold; }
+table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px solid #d6d4d4; }
+
+
+
+
+
+  </style></head><body><div class="content"><pre class="codeinput"><span class="comment">% quadsim_control.m</span>
+<span class="comment">%</span>
+<span class="comment">% Flight control logic for quadsim</span>
+<span class="comment">%</span>
+<span class="comment">% Developed for JHU EP 525.461, UAV Systems &amp; Control</span>
+<span class="comment">% Adapted from design project in "Small Unmanned Aircraft: Theory and</span>
+<span class="comment">% Practice", RWBeard &amp; TWMcClain, Princeton Univ. Press, 2012</span>
+<span class="comment">%</span>
+<span class="keyword">function</span> out = quadsim_control(uu,P)
+    <span class="keyword">persistent</span> call_count;
+
+    <span class="comment">% Check if call_count is empty (first call)</span>
+    <span class="keyword">if</span> isempty(call_count)
+        call_count = 1;
+    <span class="keyword">end</span>
+
+    <span class="comment">% Extract variables from input vector uu</span>
+    <span class="comment">%   uu = [traj_cmds(1:4); estimates(1:23); time(1)];</span>
+    k=(1:4);         traj_cmds=uu(k); <span class="comment">% Trajectory Commands</span>
+    k=k(end)+(1:23); estimates=uu(k); <span class="comment">% Feedback state estimates</span>
+    k=k(end)+(1);    time=uu(k);      <span class="comment">% Simulation time, s</span>
+
+    <span class="comment">% Extract variables from traj_cmds</span>
+    h_c      = traj_cmds(1);  <span class="comment">% commanded altitude (m)</span>
+    Vhorz_c  = traj_cmds(2);  <span class="comment">% commanded horizontal speed (m/s) (change from uavsim)</span>
+    chi_c    = traj_cmds(3);  <span class="comment">% commanded course (rad)</span>
+    psi_c    = traj_cmds(4);  <span class="comment">% yaw course (rad) (change from uavsim)</span>
+
+    <span class="comment">% Extract variables from estimates</span>
+    pn_hat       = estimates(1);  <span class="comment">% inertial North position, m</span>
+    pe_hat       = estimates(2);  <span class="comment">% inertial East position, m</span>
+    h_hat        = estimates(3);  <span class="comment">% altitude, m</span>
+    Va_hat       = estimates(4);  <span class="comment">% airspeed, m/s</span>
+    phi_hat      = estimates(5);  <span class="comment">% roll angle, rad</span>
+    theta_hat    = estimates(6);  <span class="comment">% pitch angle, rad</span>
+    psi_hat      = estimates(7);  <span class="comment">% yaw angle, rad</span>
+    p_hat        = estimates(8);  <span class="comment">% body frame roll rate, rad/s</span>
+    q_hat        = estimates(9);  <span class="comment">% body frame pitch rate, rad/s</span>
+    r_hat        = estimates(10); <span class="comment">% body frame yaw rate, rad/s</span>
+    Vn_hat       = estimates(11); <span class="comment">% north speed, m/s</span>
+    Ve_hat       = estimates(12); <span class="comment">% east speed, m/s</span>
+    Vd_hat       = estimates(13); <span class="comment">% downward speed, m/s</span>
+    wn_hat       = estimates(14); <span class="comment">% wind North, m/s</span>
+    we_hat       = estimates(15); <span class="comment">% wind East, m/s</span>
+    future_use   = estimates(16:23);
+
+    <span class="comment">% Initialize controls to trim (to be with PID logic)</span>
+    delta_e=P.delta_e0;
+    delta_a=P.delta_a0;
+    delta_r=P.delta_r0;
+    delta_t=P.delta_t0;
+
+    <span class="comment">% Initialize autopilot commands (may be overwritten with PID logic)</span>
+    phi_c = 0;
+    theta_c = 0;
+
+    Vhx_c_list = zeros(1, 2001);
+    Vhy_c_list = zeros(1, 2001);
+
+    Vhx_hat_list = zeros(1, 2001);
+    Vhy_hat_list = zeros(1, 2001);
+
+    R_ned2b = eulerToRotationMatrix(phi_hat,theta_hat,psi_hat);
+    vgb_hat = R_ned2b*[Vn_hat; Ve_hat; Vd_hat];
+    hdot_hat = -vgb_hat(3);
+
+    <span class="comment">% Set "first-time" flag, which is used to initialize PID integrators</span>
+    firstTime=(time==0);
+
+    <span class="comment">% Flight control logic</span>
+    <span class="comment">%   &lt;code goes here&gt;</span>
+    <span class="comment">% e.g.</span>
+    <span class="comment">%    delta_a = PID_roll_hold(phi_c, phi_hat, p_hat, firstTime, P);</span>
+    <span class="comment">%</span>
+    <span class="comment">% Note: For logging purposes, use variables:</span>
+    <span class="comment">%         Vhorz_c,  chi_c, h_c, phi_c, theta_c, psi_c</span>
+
+    <span class="comment">% Getting trajectory commands</span>
+    [WP_n, WP_e, h_c, psi_c] = get_quadsim_trajectory_commands(time);
+    chi_c = atan2(WP_e-pe_hat, WP_n - pn_hat);
+    k_pos = 0.25;
+    Vhorz_c = k_pos*sqrt((WP_e-pe_hat)^2 + (WP_n - pn_hat)^2);
+    <span class="keyword">if</span> (Vhorz_c &gt; 8)
+         Vhorz_c = 8;
+    <span class="keyword">end</span>
+    <span class="comment">%</span>
+    Vn_cmd = Vhorz_c*cos(chi_c);
+    Ve_cmd = Vhorz_c*sin(chi_c);
+
+    Vh_c = [cos(psi_hat) sin(psi_hat); -sin(psi_hat) cos(psi_hat)]*[Vn_cmd; Ve_cmd];
+    Vhx_c = Vh_c(1); Vhy_c = Vh_c(2);
+
+    Vh_hat = [cos(psi_hat) sin(psi_hat); -sin(psi_hat) cos(psi_hat)]*[Vn_hat; Ve_hat];
+    Vhx_hat = Vh_hat(1); Vhy_hat = Vh_hat(2);
+
+    Vhy_c_list(call_count) = Vhy_c;
+    Vhx_c_list(call_count) = Vhx_c;
+    Vhy_hat_list(call_count) = Vhy_hat;
+    Vhy_hat_list(call_count) = Vhy_hat;
+
+    <span class="keyword">if</span>(firstTime)
+         <span class="comment">% Initialize integrators</span>
+         PIR_vhorz_hold_x(0,0,0,firstTime,P);
+         PIR_vhorz_hold_y(0,0,0,firstTime,P);
+         PIR_roll_hold(0,0,0,firstTime,P);
+         PIR_pitch_hold(0,0,0,firstTime,P);
+         PIR_alt_hold(0,0,0,firstTime,P);
+         PIR_yaw_hold(0,0,0,firstTime,P);
+    <span class="keyword">end</span>
+
+    <span class="comment">% Controls</span>
+    theta_c = PIR_vhorz_hold_x(Vhx_c, Vhx_hat, 0, firstTime, P);
+    phi_c = PIR_vhorz_hold_y(Vhy_c, Vhy_hat, 0, firstTime, P);
+    delta_t = PIR_alt_hold(h_c, h_hat, hdot_hat, firstTime, P);
+    delta_a = PIR_roll_hold(phi_c, phi_hat, p_hat, firstTime, P);
+    delta_e = PIR_pitch_hold(theta_c, theta_hat, q_hat, firstTime, P);
+    delta_r = PIR_yaw_hold(psi_c, psi_hat, r_hat, firstTime, P);
+
+    <span class="comment">% Compile vector of control surface deflections</span>
+    delta = [ <span class="keyword">...</span>
+            delta_e; <span class="keyword">...</span>
+            delta_a; <span class="keyword">...</span>
+            delta_r; <span class="keyword">...</span>
+            delta_t; <span class="keyword">...</span>
+        ];
+
+    <span class="comment">% Override control delta with manual flight delta</span>
+    <span class="keyword">if</span> P.manual_flight_flag
+        error(<span class="string">'Manual flight not supported in quadsim'</span>)
+    <span class="keyword">end</span>
+
+    <span class="comment">% Compile autopilot commands for logging/vis</span>
+    ap_command = [ <span class="keyword">...</span>
+            Vhorz_c; <span class="keyword">...</span>
+            h_c; <span class="keyword">...</span>
+            chi_c; <span class="keyword">...</span>
+            phi_c; <span class="keyword">...</span>
+            theta_c;
+            psi_c; <span class="keyword">...</span><span class="comment"> % change from uavsim</span>
+            0; <span class="keyword">...</span><span class="comment"> % future use</span>
+            0; <span class="keyword">...</span><span class="comment"> % future use</span>
+            0; <span class="keyword">...</span><span class="comment"> % future use</span>
+        ];
+
+    call_count = call_count + 1;
+
+    <span class="comment">% Compile output vector</span>
+    out=[delta;ap_command]; <span class="comment">% 4+9=13</span>
+
+<span class="keyword">end</span>
+
+<span class="comment">%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%</span>
+<span class="comment">% roll_hold</span>
+<span class="comment">%   - regulate roll using aileron</span>
+<span class="comment">%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%</span>
+<span class="keyword">function</span> u = PIR_roll_hold(phi_c, phi_hat, p_hat, init_flag, P)
+
+    <span class="comment">% Set up PI with rate feedback</span>
+    y_c = phi_c;
+    y = phi_hat;
+    y_dot = p_hat;
+
+    kp = 0.11;
+    ki = 0.0075;
+    kd = 0.025;
+
+    u_lower_limit = -0.1;
+    u_upper_limit = +0.1;
+
+    <span class="comment">% Initialize integrator (e.g. when t==0)</span>
+    <span class="keyword">persistent</span> error_int;
+    <span class="keyword">if</span>( init_flag )
+        error_int = 0;
+    <span class="keyword">end</span>
+
+    <span class="comment">% Perform "PI with rate feedback"</span>
+    error = y_c - y;  <span class="comment">% Error between command and response</span>
+    error_int = error_int + P.Ts*error; <span class="comment">% Update integrator</span>
+    u = kp*error + ki*error_int - kd*y_dot;
+
+    <span class="comment">% Output saturation &amp; integrator clamping</span>
+    <span class="comment">%   - Limit u to u_upper_limit &amp; u_lower_limit</span>
+    <span class="comment">%   - Clamp if error is driving u past limit</span>
+    <span class="keyword">if</span> u &gt; u_upper_limit
+        u = u_upper_limit;
+        <span class="keyword">if</span> ki*error&gt;0
+            error_int = error_int - P.Ts*error;
+        <span class="keyword">end</span>
+    <span class="keyword">elseif</span> u &lt; u_lower_limit
+        u = u_lower_limit;
+        <span class="keyword">if</span> ki*error&lt;0
+            error_int = error_int - P.Ts*error;
+        <span class="keyword">end</span>
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="comment">%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%</span>
+<span class="comment">% alt_hold</span>
+<span class="comment">%   - regulate altitude using throttle</span>
+<span class="comment">%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%</span>
+<span class="keyword">function</span> u = PIR_alt_hold(h_c, h_hat, hdot_hat, init_flag, P)
+
+    <span class="comment">% Set up PI with rate feedback</span>
+    y_c = h_c;
+    y = h_hat;
+    y_dot = hdot_hat;
+
+    kp = 0.05;
+    ki = 0.0001;
+    kd = 0.07;
+
+    u_lower_limit = 0.1;
+    u_upper_limit = 0.9;
+
+    <span class="comment">% Initialize integrator (e.g. when t==0)</span>
+    <span class="keyword">persistent</span> error_int;
+    <span class="keyword">if</span>( init_flag )
+        error_int = 0;
+    <span class="keyword">end</span>
+
+    <span class="comment">% Perform "PI with rate feedback"</span>
+    error = y_c - y;  <span class="comment">% Error between command and response</span>
+    <span class="keyword">if</span> error &gt; 10
+        error = 10;
+    <span class="keyword">elseif</span> error &lt; -10
+        error = -10;
+    <span class="keyword">end</span>
+    error_int = error_int + P.Ts*error; <span class="comment">% Update integrator</span>
+    u = kp*error + ki*error_int - kd*y_dot + 0.5;
+
+    <span class="comment">% Output saturation &amp; integrator clamping</span>
+    <span class="comment">%   - Limit u to u_upper_limit &amp; u_lower_limit</span>
+    <span class="comment">%   - Clamp if error is driving u past limit</span>
+    <span class="keyword">if</span> u &gt; u_upper_limit
+        u = u_upper_limit;
+        <span class="keyword">if</span> ki*error&gt;0
+            error_int = error_int - P.Ts*error;
+        <span class="keyword">end</span>
+    <span class="keyword">elseif</span> u &lt; u_lower_limit
+        u = u_lower_limit;
+        <span class="keyword">if</span> ki*error&lt;0
+            error_int = error_int - P.Ts*error;
+        <span class="keyword">end</span>
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="comment">%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%</span>
+<span class="comment">% pitch_hold</span>
+<span class="comment">%   - regulate pitch using elevator</span>
+<span class="comment">%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%</span>
+<span class="keyword">function</span> u = PIR_pitch_hold(theta_c, theta_hat, q_hat, init_flag, P)
+
+    <span class="comment">% Set up PI with rate feedback</span>
+    y_c = theta_c;
+    y = theta_hat;
+    y_dot = q_hat;
+
+    kp = 0.11;
+    ki = 0.0075;
+    kd = 0.025;
+
+    u_lower_limit = -0.1;
+    u_upper_limit = 0.1;
+
+    <span class="comment">% Initialize integrator (e.g. when t==0)</span>
+    <span class="keyword">persistent</span> error_int;
+    <span class="keyword">if</span>( init_flag )
+        error_int = 0;
+    <span class="keyword">end</span>
+
+    <span class="comment">% Perform "PI with rate feedback"</span>
+    error = y_c - y;  <span class="comment">% Error between command and response</span>
+    error_int = error_int + P.Ts*error; <span class="comment">% Update integrator</span>
+    u = kp*error + ki*error_int - kd*y_dot;
+
+    <span class="comment">% Output saturation &amp; integrator clamping</span>
+    <span class="comment">%   - Limit u to u_upper_limit &amp; u_lower_limit</span>
+    <span class="comment">%   - Clamp if error is driving u past limit</span>
+    <span class="keyword">if</span> u &gt; u_upper_limit
+        u = u_upper_limit;
+        <span class="keyword">if</span> ki*error&gt;0
+            error_int = error_int - P.Ts*error;
+        <span class="keyword">end</span>
+    <span class="keyword">elseif</span> u &lt; u_lower_limit
+        u = u_lower_limit;
+        <span class="keyword">if</span> ki*error&lt;0
+            error_int = error_int - P.Ts*error;
+        <span class="keyword">end</span>
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="comment">%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%</span>
+<span class="comment">% yaw_hold</span>
+<span class="comment">%   - regulate yaw using rudder</span>
+<span class="comment">%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%</span>
+<span class="keyword">function</span> u = PIR_yaw_hold(psi_c, psi_hat, r_hat, init_flag, P)
+
+    <span class="comment">% Set up PI with rate feedback</span>
+    y_c = psi_c;
+    y = psi_hat;
+    y_dot = r_hat;
+
+    kp = 0.11;
+    ki = 0.002;
+    kd = 0.07;
+
+    u_lower_limit = -0.1;
+    u_upper_limit = 0.1;
+
+    <span class="comment">% Initialize integrator (e.g. when t==0)</span>
+    <span class="keyword">persistent</span> error_int;
+    <span class="keyword">if</span>( init_flag )
+        error_int = 0;
+    <span class="keyword">end</span>
+
+    <span class="comment">% Perform "PI with rate feedback"</span>
+    <span class="comment">% error = y_c - y;  % Error between command and response</span>
+    error = mod(y_c - y + pi, 2*pi)-pi;
+    error_int = error_int + P.Ts*error; <span class="comment">% Update integrator</span>
+    u = kp*error + ki*error_int - kd*y_dot;
+
+    <span class="comment">% Output saturation &amp; integrator clamping</span>
+    <span class="comment">%   - Limit u to u_upper_limit &amp; u_lower_limit</span>
+    <span class="comment">%   - Clamp if error is driving u past limit</span>
+    <span class="keyword">if</span> u &gt; u_upper_limit
+        u = u_upper_limit;
+        <span class="keyword">if</span> ki*error&gt;0
+            error_int = error_int - P.Ts*error;
+        <span class="keyword">end</span>
+    <span class="keyword">elseif</span> u &lt; u_lower_limit
+        u = u_lower_limit;
+        <span class="keyword">if</span> ki*error&lt;0
+            error_int = error_int - P.Ts*error;
+        <span class="keyword">end</span>
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="comment">%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%</span>
+<span class="comment">% horizontal velocity hold - x axis</span>
+<span class="comment">%   - regulate horizontal velocity hold through pitch - x axis</span>
+<span class="comment">%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%</span>
+<span class="keyword">function</span> u = PIR_vhorz_hold_x(Vhx_c, Vhx_hat, not_used, init_flag, P)
+
+    <span class="comment">% Set up PI with rate feedback</span>
+    y_c = Vhx_c;
+    y = Vhx_hat;
+    y_dot = 0;
+
+    kp = -0.035;
+    ki = -0.025;
+    kd = -0.00001;
+
+    u_lower_limit = -P.theta_max;
+    u_upper_limit = +P.theta_max;
+
+    <span class="comment">% Initialize integrator (e.g. when t==0)</span>
+    <span class="keyword">persistent</span> error_int;
+    <span class="keyword">if</span>( init_flag )
+        error_int = 0;
+    <span class="keyword">end</span>
+
+    <span class="comment">% Perform "PI with rate feedback"</span>
+    error = y_c - y;  <span class="comment">% Error between command and response</span>
+    error_int = error_int + P.Ts*error; <span class="comment">% Update integrator</span>
+    u = kp*error + ki*error_int - kd*y_dot;
+
+    <span class="comment">% Output saturation &amp; integrator clamping</span>
+    <span class="comment">%   - Limit u to u_upper_limit &amp; u_lower_limit</span>
+    <span class="comment">%   - Clamp if error is driving u past limit</span>
+    <span class="keyword">if</span> u &gt; u_upper_limit
+        u = u_upper_limit;
+        <span class="keyword">if</span> ki*error&gt;0
+            error_int = error_int - P.Ts*error;
+        <span class="keyword">end</span>
+    <span class="keyword">elseif</span> u &lt; u_lower_limit
+        u = u_lower_limit;
+        <span class="keyword">if</span> ki*error&lt;0
+            error_int = error_int - P.Ts*error;
+        <span class="keyword">end</span>
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="comment">%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%</span>
+<span class="comment">% horizontal velocity hold - y axis</span>
+<span class="comment">%   - regulate horizontal velocity hold through roll - y axis</span>
+<span class="comment">%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%</span>
+<span class="keyword">function</span> u = PIR_vhorz_hold_y(Vhy_c, Vhy_hat, not_used, init_flag, P)
+
+    <span class="comment">% Set up PI with rate feedback</span>
+    y_c = Vhy_c;
+    y = Vhy_hat;
+    y_dot = 0;
+
+    kp = 0.0349;
+    ki = 0.02;
+    kd = 0.00001;
+
+    u_lower_limit = -P.phi_max;
+    u_upper_limit = +P.phi_max;
+
+    <span class="comment">% Initialize integrator (e.g. when t==0)</span>
+    <span class="keyword">persistent</span> error_int;
+    <span class="keyword">if</span>( init_flag )
+        error_int = 0;
+    <span class="keyword">end</span>
+
+    <span class="comment">% Perform "PI with rate feedback"</span>
+    error = y_c - y;  <span class="comment">% Error between command and response</span>
+    error_int = error_int + P.Ts*error; <span class="comment">% Update integrator</span>
+    u = kp*error + ki*error_int - kd*y_dot;
+
+    <span class="comment">% Output saturation &amp; integrator clamping</span>
+    <span class="comment">%   - Limit u to u_upper_limit &amp; u_lower_limit</span>
+    <span class="comment">%   - Clamp if error is driving u past limit</span>
+    <span class="keyword">if</span> u &gt; u_upper_limit
+        u = u_upper_limit;
+        <span class="keyword">if</span> ki*error&gt;0
+            error_int = error_int - P.Ts*error;
+        <span class="keyword">end</span>
+    <span class="keyword">elseif</span> u &lt; u_lower_limit
+        u = u_lower_limit;
+        <span class="keyword">if</span> ki*error&lt;0
+            error_int = error_int - P.Ts*error;
+        <span class="keyword">end</span>
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+</pre><pre class="codeoutput error">Not enough input arguments.
+
+Error in quadsim_control (line 19)
+    k=(1:4);         traj_cmds=uu(k); % Trajectory Commands
+</pre><p class="footer"><br><a href="https://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2023a</a><br></p></div><!--
+##### SOURCE BEGIN #####
+% quadsim_control.m
+%
+% Flight control logic for quadsim
+%
+% Developed for JHU EP 525.461, UAV Systems & Control
+% Adapted from design project in "Small Unmanned Aircraft: Theory and
+% Practice", RWBeard & TWMcClain, Princeton Univ. Press, 2012
+%   
+function out = quadsim_control(uu,P)
+    persistent call_count;
+    
+    % Check if call_count is empty (first call)
+    if isempty(call_count)
+        call_count = 1;
+    end
+
+    % Extract variables from input vector uu
+    %   uu = [traj_cmds(1:4); estimates(1:23); time(1)];
+    k=(1:4);         traj_cmds=uu(k); % Trajectory Commands
+    k=k(end)+(1:23); estimates=uu(k); % Feedback state estimates
+    k=k(end)+(1);    time=uu(k);      % Simulation time, s
+
+    % Extract variables from traj_cmds
+    h_c      = traj_cmds(1);  % commanded altitude (m)
+    Vhorz_c  = traj_cmds(2);  % commanded horizontal speed (m/s) (change from uavsim)
+    chi_c    = traj_cmds(3);  % commanded course (rad)
+    psi_c    = traj_cmds(4);  % yaw course (rad) (change from uavsim)
+
+    % Extract variables from estimates
+    pn_hat       = estimates(1);  % inertial North position, m
+    pe_hat       = estimates(2);  % inertial East position, m
+    h_hat        = estimates(3);  % altitude, m
+    Va_hat       = estimates(4);  % airspeed, m/s
+    phi_hat      = estimates(5);  % roll angle, rad
+    theta_hat    = estimates(6);  % pitch angle, rad
+    psi_hat      = estimates(7);  % yaw angle, rad
+    p_hat        = estimates(8);  % body frame roll rate, rad/s
+    q_hat        = estimates(9);  % body frame pitch rate, rad/s
+    r_hat        = estimates(10); % body frame yaw rate, rad/s
+    Vn_hat       = estimates(11); % north speed, m/s
+    Ve_hat       = estimates(12); % east speed, m/s
+    Vd_hat       = estimates(13); % downward speed, m/s
+    wn_hat       = estimates(14); % wind North, m/s
+    we_hat       = estimates(15); % wind East, m/s    
+    future_use   = estimates(16:23);
+
+    % Initialize controls to trim (to be with PID logic)
+    delta_e=P.delta_e0;
+    delta_a=P.delta_a0;
+    delta_r=P.delta_r0;
+    delta_t=P.delta_t0;
+    
+    % Initialize autopilot commands (may be overwritten with PID logic)
+    phi_c = 0;
+    theta_c = 0;
+
+    Vhx_c_list = zeros(1, 2001);
+    Vhy_c_list = zeros(1, 2001);
+
+    Vhx_hat_list = zeros(1, 2001);
+    Vhy_hat_list = zeros(1, 2001);
+    
+    R_ned2b = eulerToRotationMatrix(phi_hat,theta_hat,psi_hat);
+    vgb_hat = R_ned2b*[Vn_hat; Ve_hat; Vd_hat];
+    hdot_hat = -vgb_hat(3);
+
+    % Set "first-time" flag, which is used to initialize PID integrators
+    firstTime=(time==0);
+
+    % Flight control logic
+    %   <code goes here>
+    % e.g.
+    %    delta_a = PID_roll_hold(phi_c, phi_hat, p_hat, firstTime, P);
+    %
+    % Note: For logging purposes, use variables: 
+    %         Vhorz_c,  chi_c, h_c, phi_c, theta_c, psi_c
+    
+    % Getting trajectory commands
+    [WP_n, WP_e, h_c, psi_c] = get_quadsim_trajectory_commands(time);
+    chi_c = atan2(WP_e-pe_hat, WP_n - pn_hat);
+    k_pos = 0.25;
+    Vhorz_c = k_pos*sqrt((WP_e-pe_hat)^2 + (WP_n - pn_hat)^2);
+    if (Vhorz_c > 8)
+         Vhorz_c = 8;
+    end
+    % 
+    Vn_cmd = Vhorz_c*cos(chi_c);
+    Ve_cmd = Vhorz_c*sin(chi_c);
+    
+    Vh_c = [cos(psi_hat) sin(psi_hat); -sin(psi_hat) cos(psi_hat)]*[Vn_cmd; Ve_cmd];
+    Vhx_c = Vh_c(1); Vhy_c = Vh_c(2);
+    
+    Vh_hat = [cos(psi_hat) sin(psi_hat); -sin(psi_hat) cos(psi_hat)]*[Vn_hat; Ve_hat];
+    Vhx_hat = Vh_hat(1); Vhy_hat = Vh_hat(2);
+    
+    Vhy_c_list(call_count) = Vhy_c;
+    Vhx_c_list(call_count) = Vhx_c;
+    Vhy_hat_list(call_count) = Vhy_hat;
+    Vhy_hat_list(call_count) = Vhy_hat;
+    
+    if(firstTime)
+         % Initialize integrators
+         PIR_vhorz_hold_x(0,0,0,firstTime,P);
+         PIR_vhorz_hold_y(0,0,0,firstTime,P);
+         PIR_roll_hold(0,0,0,firstTime,P); 
+         PIR_pitch_hold(0,0,0,firstTime,P); 
+         PIR_alt_hold(0,0,0,firstTime,P); 
+         PIR_yaw_hold(0,0,0,firstTime,P);
+    end
+
+    % Controls
+    theta_c = PIR_vhorz_hold_x(Vhx_c, Vhx_hat, 0, firstTime, P);
+    phi_c = PIR_vhorz_hold_y(Vhy_c, Vhy_hat, 0, firstTime, P); 
+    delta_t = PIR_alt_hold(h_c, h_hat, hdot_hat, firstTime, P);
+    delta_a = PIR_roll_hold(phi_c, phi_hat, p_hat, firstTime, P);
+    delta_e = PIR_pitch_hold(theta_c, theta_hat, q_hat, firstTime, P);
+    delta_r = PIR_yaw_hold(psi_c, psi_hat, r_hat, firstTime, P);
+    
+    % Compile vector of control surface deflections
+    delta = [ ...
+            delta_e; ...
+            delta_a; ...
+            delta_r; ...
+            delta_t; ...
+        ];
+
+    % Override control delta with manual flight delta
+    if P.manual_flight_flag
+        error('Manual flight not supported in quadsim')
+    end
+
+    % Compile autopilot commands for logging/vis
+    ap_command = [ ...
+            Vhorz_c; ...
+            h_c; ...
+            chi_c; ...
+            phi_c; ...
+            theta_c; 
+            psi_c; ... % change from uavsim
+            0; ... % future use
+            0; ... % future use
+            0; ... % future use
+        ];
+
+    call_count = call_count + 1;
+
+    % Compile output vector
+    out=[delta;ap_command]; % 4+9=13
+
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% roll_hold
+%   - regulate roll using aileron
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function u = PIR_roll_hold(phi_c, phi_hat, p_hat, init_flag, P)
+
+    % Set up PI with rate feedback
+    y_c = phi_c; 
+    y = phi_hat; 
+    y_dot = p_hat; 
+
+    kp = 0.11;
+    ki = 0.0075;
+    kd = 0.025;
+
+    u_lower_limit = -0.1;
+    u_upper_limit = +0.1;
+
+    % Initialize integrator (e.g. when t==0)
+    persistent error_int;
+    if( init_flag )   
+        error_int = 0;
+    end  
+
+    % Perform "PI with rate feedback"
+    error = y_c - y;  % Error between command and response
+    error_int = error_int + P.Ts*error; % Update integrator
+    u = kp*error + ki*error_int - kd*y_dot;
+
+    % Output saturation & integrator clamping
+    %   - Limit u to u_upper_limit & u_lower_limit
+    %   - Clamp if error is driving u past limit
+    if u > u_upper_limit
+        u = u_upper_limit;
+        if ki*error>0
+            error_int = error_int - P.Ts*error;
+        end
+    elseif u < u_lower_limit
+        u = u_lower_limit;
+        if ki*error<0
+            error_int = error_int - P.Ts*error;
+        end
+    end
+    
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% alt_hold
+%   - regulate altitude using throttle
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function u = PIR_alt_hold(h_c, h_hat, hdot_hat, init_flag, P)
+
+    % Set up PI with rate feedback
+    y_c = h_c; 
+    y = h_hat; 
+    y_dot = hdot_hat; 
+
+    kp = 0.05;
+    ki = 0.0001;
+    kd = 0.07;
+
+    u_lower_limit = 0.1;
+    u_upper_limit = 0.9;
+
+    % Initialize integrator (e.g. when t==0)
+    persistent error_int;
+    if( init_flag )   
+        error_int = 0;
+    end  
+
+    % Perform "PI with rate feedback"
+    error = y_c - y;  % Error between command and response
+    if error > 10
+        error = 10;
+    elseif error < -10
+        error = -10;
+    end
+    error_int = error_int + P.Ts*error; % Update integrator
+    u = kp*error + ki*error_int - kd*y_dot + 0.5;
+
+    % Output saturation & integrator clamping
+    %   - Limit u to u_upper_limit & u_lower_limit
+    %   - Clamp if error is driving u past limit
+    if u > u_upper_limit
+        u = u_upper_limit;
+        if ki*error>0
+            error_int = error_int - P.Ts*error;
+        end
+    elseif u < u_lower_limit
+        u = u_lower_limit;
+        if ki*error<0
+            error_int = error_int - P.Ts*error;
+        end
+    end
+    
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% pitch_hold
+%   - regulate pitch using elevator
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function u = PIR_pitch_hold(theta_c, theta_hat, q_hat, init_flag, P)
+
+    % Set up PI with rate feedback
+    y_c = theta_c; 
+    y = theta_hat; 
+    y_dot = q_hat; 
+
+    kp = 0.11;
+    ki = 0.0075;
+    kd = 0.025;
+
+    u_lower_limit = -0.1;
+    u_upper_limit = 0.1;
+
+    % Initialize integrator (e.g. when t==0)
+    persistent error_int;
+    if( init_flag )   
+        error_int = 0;
+    end  
+
+    % Perform "PI with rate feedback"
+    error = y_c - y;  % Error between command and response
+    error_int = error_int + P.Ts*error; % Update integrator
+    u = kp*error + ki*error_int - kd*y_dot;
+
+    % Output saturation & integrator clamping
+    %   - Limit u to u_upper_limit & u_lower_limit
+    %   - Clamp if error is driving u past limit
+    if u > u_upper_limit
+        u = u_upper_limit;
+        if ki*error>0
+            error_int = error_int - P.Ts*error;
+        end
+    elseif u < u_lower_limit
+        u = u_lower_limit;
+        if ki*error<0
+            error_int = error_int - P.Ts*error;
+        end
+    end
+    
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% yaw_hold
+%   - regulate yaw using rudder
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function u = PIR_yaw_hold(psi_c, psi_hat, r_hat, init_flag, P)
+
+    % Set up PI with rate feedback
+    y_c = psi_c;
+    y = psi_hat;
+    y_dot = r_hat;
+
+    kp = 0.11;
+    ki = 0.002;
+    kd = 0.07;
+
+    u_lower_limit = -0.1;
+    u_upper_limit = 0.1;
+
+    % Initialize integrator (e.g. when t==0)
+    persistent error_int;
+    if( init_flag )   
+        error_int = 0;
+    end  
+
+    % Perform "PI with rate feedback"
+    % error = y_c - y;  % Error between command and response
+    error = mod(y_c - y + pi, 2*pi)-pi;
+    error_int = error_int + P.Ts*error; % Update integrator
+    u = kp*error + ki*error_int - kd*y_dot;
+
+    % Output saturation & integrator clamping
+    %   - Limit u to u_upper_limit & u_lower_limit
+    %   - Clamp if error is driving u past limit
+    if u > u_upper_limit
+        u = u_upper_limit;
+        if ki*error>0
+            error_int = error_int - P.Ts*error;
+        end
+    elseif u < u_lower_limit
+        u = u_lower_limit;
+        if ki*error<0
+            error_int = error_int - P.Ts*error;
+        end
+    end
+    
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% horizontal velocity hold - x axis
+%   - regulate horizontal velocity hold through pitch - x axis
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function u = PIR_vhorz_hold_x(Vhx_c, Vhx_hat, not_used, init_flag, P)
+
+    % Set up PI with rate feedback
+    y_c = Vhx_c; 
+    y = Vhx_hat; 
+    y_dot = 0; 
+
+    kp = -0.035;
+    ki = -0.025;
+    kd = -0.00001;
+
+    u_lower_limit = -P.theta_max;
+    u_upper_limit = +P.theta_max;
+
+    % Initialize integrator (e.g. when t==0)
+    persistent error_int;
+    if( init_flag )   
+        error_int = 0;
+    end  
+
+    % Perform "PI with rate feedback"
+    error = y_c - y;  % Error between command and response
+    error_int = error_int + P.Ts*error; % Update integrator
+    u = kp*error + ki*error_int - kd*y_dot;
+
+    % Output saturation & integrator clamping
+    %   - Limit u to u_upper_limit & u_lower_limit
+    %   - Clamp if error is driving u past limit
+    if u > u_upper_limit
+        u = u_upper_limit;
+        if ki*error>0
+            error_int = error_int - P.Ts*error;
+        end
+    elseif u < u_lower_limit
+        u = u_lower_limit;
+        if ki*error<0
+            error_int = error_int - P.Ts*error;
+        end
+    end
+    
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% horizontal velocity hold - y axis
+%   - regulate horizontal velocity hold through roll - y axis
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function u = PIR_vhorz_hold_y(Vhy_c, Vhy_hat, not_used, init_flag, P)
+
+    % Set up PI with rate feedback
+    y_c = Vhy_c; 
+    y = Vhy_hat; 
+    y_dot = 0; 
+
+    kp = 0.0349;
+    ki = 0.02;
+    kd = 0.00001;
+
+    u_lower_limit = -P.phi_max;
+    u_upper_limit = +P.phi_max;
+
+    % Initialize integrator (e.g. when t==0)
+    persistent error_int;
+    if( init_flag )   
+        error_int = 0;
+    end  
+
+    % Perform "PI with rate feedback"
+    error = y_c - y;  % Error between command and response
+    error_int = error_int + P.Ts*error; % Update integrator
+    u = kp*error + ki*error_int - kd*y_dot;
+
+    % Output saturation & integrator clamping
+    %   - Limit u to u_upper_limit & u_lower_limit
+    %   - Clamp if error is driving u past limit
+    if u > u_upper_limit
+        u = u_upper_limit;
+        if ki*error>0
+            error_int = error_int - P.Ts*error;
+        end
+    elseif u < u_lower_limit
+        u = u_lower_limit;
+        if ki*error<0
+            error_int = error_int - P.Ts*error;
+        end
+    end
+    
+end
+##### SOURCE END #####
+--></body></html>

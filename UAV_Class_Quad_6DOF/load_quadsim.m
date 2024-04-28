@@ -13,4 +13,4 @@ open('quadsim')
 P = init_quadsim_params;
 
 % Compute the trim condition and set trim parameters in P
-P.delta_t0 = 0;
+[trim_throttle, P] = compute_trim(P);
