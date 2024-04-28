@@ -26,17 +26,21 @@ kphi = 7; ktheta = 8;
 %% Transfer functions -----------------------------------------------------
 
 s = tf('s');
+% dr2yaw
 dr2yaw_numerical = H(kpsi,kdr);
 dr2yaw_analytical = (8 * P.delta_t0 * P.k_Tp * P.k_omega^2) / (P.Jz * s^2);
 
+% da2phi
 da2phi_numerical = H(kphi, kda);
 da2phi_analytical = (8 * P.delta_t0 * P.delta_y * P.k_Pf * P.k_omega * P.k_omega) ... 
      / (P.Jx * s^2);
 
+% de2theta
 de2theta_numerical = H(ktheta,kde);
 de2theta_analytical = (8 * P.delta_x * P.k_Pf * P.k_omega * P.k_omega * P.delta_t0) ... 
      / (P.Jy * s^2);
 
+% dt2alt
 dt2alt_numerical = -1*H(kpd,kdt);
 dt2alt_analytical = ((8/P.mass) * P.k_Pf * P.k_omega * P.k_omega ... 
     * P.delta_t0) / (s^2);
@@ -44,24 +48,27 @@ dt2alt_analytical = ((8/P.mass) * P.k_Pf * P.k_omega * P.k_omega ...
 %% ------------------------------------------------------------------------
 % Step 1: Simulate the step response of the transfer function
 s = tf('s');
-de2theta_analytical = (8 * P.delta_x * P.k_Pf * P.k_omega * P.k_omega * P.delta_t0) / (P.Jy * s^2);
+dt2alt_analytical = ((8/P.mass) * P.k_Pf * P.k_omega * P.k_omega ... 
+    * P.delta_t0) / (s^2);
 t_end = max(out.time_s); % End time for the simulation
-[y_tf, t_tf] = step(de2theta_analytical, t_end);
+[y_tf, t_tf] = step(dt2alt_analytical, t_end);
 
 % Step 2: Scale and shift the transfer function response
-scaling_factor = max(abs(out.q_dps)) / max(abs(y_tf)); % Scaling factor
+scaling_factor = max(abs(out.alt_rate_mps)) / max(abs(y_tf)); % Scaling factor
 shift_factor = 0; % Shift factor (adjust as needed)
 y_tf_scaled = scaling_factor * y_tf + shift_factor; % Scaled and shifted transfer function response
 
+dt2alt_numerical = -1*H(kpd,kdt);
+
 % Step 3: Plot the comparison
 figure;
-plot(out.time_s, out.q_dps, 'b', 'LineWidth', 2); % Plot 6DOF output
+plot(out.time_s, out.alt_rate_mps, 'b', 'LineWidth', 2); % Plot 6DOF output
 hold on;
 plot(t_tf, y_tf_scaled, 'r', 'LineWidth', 2); % Plot scaled and shifted transfer function response
 hold on;
-plot(t_tf, y_tf_scaled, 'g--', 'LineWidth', 2); % Plot scaled and shifted transfer function response
+plot(t_tf, dt2alt_numerical, 'g--', 'LineWidth', 2); % Plot scaled and shifted transfer function response
 xlabel('Time (s)');
-ylabel('Yaw Rate (deg/s)');
+ylabel('Altitude Rate (m/s)');
 title('Comparison of Transfer Function with 6DOF Output');
 legend('6DOF Output', 'Analytical' , 'Numerical');
 grid on;

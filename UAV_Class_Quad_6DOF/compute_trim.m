@@ -6,7 +6,7 @@
 % Adapted from design project in "Small Unmanned Aircraft: Theory and
 % Practice", RWBeard & TWMcClain, Princeton Univ. Press, 2012
 
-function trim_throttle = compute_trim(P)
+function [trim_throttle, P] = compute_trim(P)
     
     % Define f_g
     f_g = P.mass * P.gravity;
@@ -21,4 +21,6 @@ function trim_throttle = compute_trim(P)
 
     % Take square root 
     trim_throttle = sqrt(throttle_squared);
+
+    P.delta_t0 = trim_throttle;
 end
